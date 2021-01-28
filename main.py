@@ -13,6 +13,9 @@ async def main_loop():
 
     await context.set_effect(DEFAULT_EFFECT)
 
+    for controller in CONTROLLERS:
+        await controller.start(context)
+
     while True:
         await context.frame()
 
@@ -27,5 +30,8 @@ async def main_loop():
 
         for sink in context.sinks:
             await sink.sink(result)
+
+        await asyncio.sleep(FRAME_TIME / 1000)
+
 
 asyncio.run(main_loop())

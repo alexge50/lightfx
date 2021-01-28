@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from collections import namedtuple
 from asyncio import Lock
 
@@ -19,7 +19,7 @@ class Context:
 
         self.sinks = [x for x in sinks if core.sinks.is_sink(type(x))]
 
-    @contextmanager
+    @asynccontextmanager
     async def state(self):
         try:
             async with self._lock:
