@@ -1,12 +1,18 @@
 from contextlib import asynccontextmanager
-from collections import namedtuple
+from dataclasses import dataclass
 from asyncio import Lock
 
 import core.timer
 import core.effects
 import core.sinks
 
-State = namedtuple("State", "options current_effect delta_time")
+
+@dataclass
+class State:
+    options: object
+    current_effect: str
+    delta_time: float
+    effects: list
 
 
 class Context:
@@ -26,7 +32,8 @@ class Context:
                 state = State(
                     options=self._options,
                     current_effect=self._current_effect,
-                    delta_time=self._timer.delta_time
+                    delta_time=self._timer.delta_time,
+                    effects=list(self._effects.keys())
                 )
                 yield state
         finally:
@@ -38,7 +45,8 @@ class Context:
             return State(
                 options=self._options,
                 current_effect=self._current_effect,
-                delta_time=self._timer.delta_time
+                delta_time=self._timer.delta_time,
+                effects=list(self._effects.keys())
             )
 
     async def add_effects(self, effects: dict):
@@ -56,7 +64,7 @@ class Context:
 
     async def set_options(self, options):
         async with self._lock:
-            if self._current_effect is str:
+            if core.effects.is_effect_type(type(self._current_effect)):
                 if isinstance(options, type(self._current_effect).options_type()) or \
                         type(self._current_effect).options_type() is None:
                     self._options = options

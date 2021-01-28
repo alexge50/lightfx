@@ -30,7 +30,7 @@ def is_effect_type(x) -> bool:
     if not isinstance(x, type):
         return False
 
-    return issubclass(x, Effect)
+    return issubclass(x, Effect) and x is not Effect
 
 
 def is_effect_function(x) -> bool:
