@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from asyncio import Lock
 
@@ -43,6 +42,9 @@ class Context:
             if isinstance(effect, str) and effect in self._effects:
                 self._current_effect = self._effects[effect]()
                 self._options = type(self._current_effect).default_options()
+            elif core.effects.is_effect_type(type(effect)):
+                self._current_effect = effect
+                self._options = type(self._current_effect).default_options()
             elif core.effects.is_effect_function(effect):
                 self._current_effect = effect
                 self._options = None
@@ -52,6 +54,7 @@ class Context:
             if core.effects.is_effect_type(type(self._current_effect)):
                 if isinstance(options, type(self._current_effect).options_type()) or \
                         type(self._current_effect).options_type() is None:
+                    self._current_effect.check_options(options)
                     self._options = options
             elif core.effects.is_effect_function(self._current_effect):
                 self._options = options

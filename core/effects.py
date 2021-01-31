@@ -15,6 +15,9 @@ class Effect:
     def default_options(cls):
         return cls.DEFAULT_OPTIONS
 
+    def check_options(self, options):
+        pass
+
 
 def load_effects(file_path) -> {str: type}:
     module_name = Path(file_path).stem
