@@ -67,9 +67,49 @@ async def set_effect(effect):
     writer.close()
 
 
+async def set_top_level_options(options):
+    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    send(writer, {
+        'action': 'get',
+    })
+
+    result = (await receive(reader))['success']
+    result['options'] = options
+
+    send(writer, {
+        'action': 'set',
+        'value': result
+    })
+
+    writer.close()
+
+
+async def set_options_fields(options_fields: [(str, object)]):
+    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    send(writer, {
+        'action': 'get',
+    })
+
+    result = (await receive(reader))['success']
+
+    options_type = type(result['options'])
+    options = result['options']._asdict()
+    for name, value in options_fields:
+        options[name] = value
+
+    result['options'] = options_type(**options)
+
+    send(writer, {
+        'action': 'set',
+        'value': result
+    })
+
+    writer.close()
+
+
 parser = argparse.ArgumentParser(description='lightfx cli tool.')
 parser.add_argument('command', type=str, help='command can be shell, effect or options')
-parser.add_argument('argument', type=str, nargs='?', default=None, help='argument for effect or options command')
+parser.add_argument('arguments', type=str, nargs='*', default=None, help='argument for effect or options command')
 parser.add_argument('--list', action='store_true', help='list effects/options description')
 
 args = parser.parse_args()
@@ -77,17 +117,23 @@ args = parser.parse_args()
 if args.command == 'shell':
     asyncio.run(exec())
 elif args.command == 'effect':
-    if args.argument is None:
+    if len(args.arguments) == 0:
         if args.list:
             asyncio.run(get('effects'))
         else:
             asyncio.run(get('effect'))
     else:
-        asyncio.run(set_effect(args.argument))
+        asyncio.run(set_effect(args.arguments[0]))
 elif args.command == 'options':
-    if args.argument is None:
+    if len(args.arguments) == 0:
         asyncio.run(get('options'))
     else:
-        print('unimplemented')
+        if len(args.arguments) == 1:
+            asyncio.run(set_top_level_options(eval(args.arguments[1], {}, {})))
+        elif len(args.arguments) % 2 == 0:
+            arguments = [(name, eval(value, {}, {})) for name, value in zip(args.arguments[0::2], args.arguments[1::2])]
+            asyncio.run(set_options_fields(arguments))
+        else:
+            print('incorrect number of arguments')
 else:
     print(f'command {args.command} not recognized')

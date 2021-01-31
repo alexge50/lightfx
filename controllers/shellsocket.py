@@ -78,8 +78,7 @@ async def handle_connection(context, reader, writer):
 
                 state = await context.read_only_state()
                 if '_asdict' in dir(value['options']) and \
-                   '__name__' in value['options'] and \
-                   core.effects.is_effect_type(state.current_effect):
+                   core.effects.is_effect_type(type(state.current_effect)):
                     await context.set_options(type(state.current_effect).options_type()(**value['options']._asdict()))
                 else:
                     await context.set_options(value['options'])
