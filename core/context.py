@@ -25,22 +25,7 @@ class Context:
 
         self.sinks = [x for x in sinks if core.sinks.is_sink(type(x))]
 
-    @asynccontextmanager
     async def state(self):
-        try:
-            async with self._lock:
-                state = State(
-                    options=self._options,
-                    current_effect=self._current_effect,
-                    delta_time=self._timer.delta_time,
-                    effects=list(self._effects.keys())
-                )
-                yield state
-        finally:
-            await self.set_effect(state.current_effect)
-            await self.set_options(state.options)
-
-    async def read_only_state(self):
         async with self._lock:
             return State(
                 options=self._options,

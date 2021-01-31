@@ -36,6 +36,9 @@ def string_stdout():
 
 async def handle_connection(context, reader, writer):
     try:
+        globals_ = {}
+        locals_ = {}
+
         while True:
             data = await receive(reader)
 
@@ -46,22 +49,25 @@ async def handle_connection(context, reader, writer):
                 is_expression = False
                 expression_value = None
 
-                async with context.state() as state:
-                    try:
-                        with string_stdout() as stdout:
-                            if len(input_ast.body) == 1 and isinstance(input_ast.body[0], ast.Expr):
-                                expression_value = eval(exec_string)
-                                is_expression = True
-                            else:
-                                exec(exec_string)
-                    except Exception:
-                        message = traceback.format_exc()
-                        send(writer, {'traceback': message})
-                    finally:
-                        if is_expression:
-                            send(writer, {'success': {'value': repr(expression_value), 'stdout': stdout.getvalue()}})
-                        else:
-                            send(writer, {'success': {'stdout': stdout.getvalue()}})
+                try:
+                    if len(input_ast.body) == 1 and isinstance(input_ast.body[0], ast.Expr):
+                        exec(f"async def f(context):\n    return {exec_string}\n", globals_, locals_)
+                        is_expression = True
+                    else:
+                        exec_string = f"{exec_string}\nglobals().update(locals())"
+                        exec_string = '\n'.join([f"    {x}" for x in exec_string.split('\n')])
+                        exec(f"async def f(context):\n{exec_string}", globals_, locals_)
+
+                    with string_stdout() as stdout:
+                        expression_value = await locals_['f'](context)
+                except Exception:
+                    message = traceback.format_exc()
+                    send(writer, {'traceback': message})
+                finally:
+                    if is_expression:
+                        send(writer, {'success': {'value': repr(expression_value), 'stdout': stdout.getvalue()}})
+                    else:
+                        send(writer, {'success': {'stdout': stdout.getvalue()}})
             elif data['action'] == 'get':
                 async with context.state() as state:
                     send(writer, {'success': {
