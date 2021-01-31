@@ -69,20 +69,20 @@ async def handle_connection(context, reader, writer):
                     else:
                         send(writer, {'success': {'stdout': stdout.getvalue()}})
             elif data['action'] == 'get':
-                async with context.state() as state:
-                    send(writer, {'success': {
-                        'delta_time': state.delta_time,
-                        'effect': str(state.current_effect),
-                        'options': state.options,
-                        'effects': state.effects
-                    }})
+                state = await context.state()
+                send(writer, {'success': {
+                    'delta_time': state.delta_time,
+                    'effect': str(state.current_effect),
+                    'options': state.options,
+                    'effects': state.effects
+                }})
             elif data['action'] == 'set':
                 value = data['value']
 
-                if str((await context.read_only_state()).current_effect) != value['effect']:
+                if str((await context.state()).current_effect) != value['effect']:
                     await context.set_effect(value['effect'])
 
-                state = await context.read_only_state()
+                state = await context.state()
                 if '_asdict' in dir(value['options']) and \
                    core.effects.is_effect_type(type(state.current_effect)):
                     await context.set_options(type(state.current_effect).options_type()(**value['options']._asdict()))
