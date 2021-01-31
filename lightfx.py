@@ -1,41 +1,70 @@
 import asyncio
 import argparse
 import struct
-import pickle
+
+import jsonplus
 
 
 async def receive(reader):
     size = struct.unpack('>I', await reader.readexactly(4))[0]
     payload = await reader.readexactly(size)
-    data = pickle.loads(payload)
+    data = jsonplus.loads(payload.decode())
 
     return data
 
 
 def send(writer, data):
-    serialized_data = pickle.dumps(data)
+    serialized_data = jsonplus.dumps(data).encode()
     writer.write(struct.pack('>I', len(serialized_data)))
     writer.write(serialized_data)
 
 
-async def main(command=None):
+async def exec():
     reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
 
     try:
-        if command is None:
-            user_input = input('>>> ')
-            while user_input.strip() != 'q':
-                send(writer, user_input)
-                print(await receive(reader))
-                user_input = input('>>> ')
-
-        else:
-            send(writer, command)
+        user_input = input('>>> ')
+        while user_input.strip() != 'q':
+            send(writer, {
+                'action': 'exec',
+                'value': user_input
+            })
             print(await receive(reader))
+            user_input = input('>>> ')
 
         writer.close()
     except asyncio.IncompleteReadError:
         print('Server disconnected')
+
+
+async def get(field):
+    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    send(writer, {
+        'action': 'get',
+    })
+
+    result = await receive(reader)
+
+    print(result['success'][field])
+
+    writer.close()
+
+
+async def set_effect(effect):
+    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    send(writer, {
+        'action': 'get',
+    })
+
+    result = (await receive(reader))['success']
+    result['effect'] = effect
+
+    send(writer, {
+        'action': 'set',
+        'value': result
+    })
+
+    writer.close()
 
 
 parser = argparse.ArgumentParser(description='lightfx cli tool.')
@@ -46,19 +75,19 @@ parser.add_argument('--list', action='store_true', help='list effects/options de
 args = parser.parse_args()
 
 if args.command == 'shell':
-    asyncio.run(main())
+    asyncio.run(exec())
 elif args.command == 'effect':
     if args.argument is None:
         if args.list:
-            asyncio.run(main('state.effects'))
+            asyncio.run(get('effects'))
         else:
-            asyncio.run(main('state.current_effect'))
+            asyncio.run(get('effect'))
     else:
-        asyncio.run(main(f"state.current_effect = '{args.argument}'"))
+        asyncio.run(set_effect(args.argument))
 elif args.command == 'options':
     if args.argument is None:
-        asyncio.run(main('state.options'))
+        asyncio.run(get('options'))
     else:
-        asyncio.run(main(f"state.options = {args.argument}"))
+        print('unimplemented')
 else:
     print(f'command {args.command} not recognized')
