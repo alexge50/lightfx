@@ -1,13 +1,13 @@
 from core.effects import Effect
 from collections import namedtuple
 
-color = namedtuple('color', 'r g b')
+SolidOptions = namedtuple('SolidOptions', 'color')
 
 
 class Solid(Effect):
-    OPTIONS_TYPE = color
-    DEFAULT_OPTIONS = color(255, 0, 255)
+    OPTIONS_TYPE = SolidOptions
+    DEFAULT_OPTIONS = SolidOptions((255, 0, 255))
 
     def run(self, delta_time, options):
-        return options[0], options[1], options[2]
+        return options.color
 
