@@ -64,7 +64,7 @@ async def handle_connection(context, reader, writer):
                 except Exception:
                     message = traceback.format_exc()
                     send(writer, {'state': 'failed', 'traceback': message})
-                finally:
+                else:
                     if is_expression:
                         send(writer, {
                             'state': 'success',
@@ -72,7 +72,7 @@ async def handle_connection(context, reader, writer):
                             'stdout': stdout.getvalue()
                         })
                     else:
-                        send(writer, {'success': {'stdout': stdout.getvalue()}})
+                        send(writer, {'state': 'success', 'stdout': stdout.getvalue()})
             elif data['action'] == 'get':
                 state = await context.state()
                 send(writer, {

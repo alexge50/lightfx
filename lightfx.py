@@ -1,6 +1,9 @@
+import ast
 import asyncio
 import argparse
 import struct
+import sys
+import readline
 
 import jsonplus
 
@@ -24,17 +27,33 @@ async def exec():
 
     try:
         user_input = input('>>> ')
-        while user_input.strip() != 'q':
+        while True:
+            try:
+                ast.parse(user_input)
+            except SyntaxError:
+                more_input = input('... ')
+                while more_input != '':
+                    user_input += '\n' + more_input
+                    more_input = input('... ')
+
             send(writer, {
                 'action': 'exec',
                 'value': user_input
             })
-            print(await receive(reader))
-            user_input = input('>>> ')
+            result = await receive(reader)
 
-        writer.close()
+            if result['state'] == 'failed':
+                print(result['traceback'], file=sys.stderr)
+            else:
+                if 'value' in result:
+                    print(result['value'])
+                print(result['stdout'])
+
+            user_input = input('>>> ')
     except asyncio.IncompleteReadError:
         print('Server disconnected')
+    except EOFError:
+        writer.close()
 
 
 async def get(field):
@@ -48,7 +67,7 @@ async def get(field):
     if result['state'] == 'success':
         print(result['value'][field])
     else:
-        print("getting state failed")
+        print("getting state failed", file=sys.stderr)
 
     writer.close()
 
@@ -72,7 +91,7 @@ async def set_effect(effect):
     if result['state'] == 'success':
         print(f'effect set to {effect}')
     else:
-        print(f'Error: {result["value"]}')
+        print(f'Error: {result["value"]}', file=sys.stderr)
 
     writer.close()
 
@@ -96,7 +115,7 @@ async def set_top_level_options(options):
     if result['state'] == 'success':
         print(f'options updated')
     else:
-        print(f'Error: {result["value"]}')
+        print(f'Error: {result["value"]}', file=sys.stderr)
 
     writer.close()
 
@@ -126,7 +145,7 @@ async def set_options_fields(options_fields: [(str, object)]):
     if result['state'] == 'success':
         print(f'options updated')
     else:
-        print(f'Error: {result["value"]}')
+        print(f'Error: {result["value"]}', file=sys.stderr)
 
     writer.close()
 
