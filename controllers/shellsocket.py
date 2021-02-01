@@ -109,7 +109,7 @@ async def handle_connection(context, reader, writer):
 
 
 class ShellSocket:
-    def __init__(self, socket_path):
+    def __init__(self, socket_path='/tmp/lightfx.sock'):
         self._server = None
         self._socket_path = socket_path
         self._context = None

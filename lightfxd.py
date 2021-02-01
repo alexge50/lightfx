@@ -1,19 +1,40 @@
 import asyncio
+import importlib.util
+from dataclasses import dataclass
+import argparse
+import glob
 
 from core.context import Context
 import core.effects
-from config import *
 
 
-async def main_loop():
-    context = Context(SINKS)
+@dataclass
+class Config:
+    effects: list
+    sinks: list
+    controllers: list
+    default_effect: object
+    frame_time: int
 
-    for effect_file in EFFECTS:
+
+def load_config(path):
+    spec = importlib.util.spec_from_file_location('config', path)
+    config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(config)
+
+    return config
+
+
+async def main_loop(config: Config):
+    context = Context(config.sinks)
+
+    for effect_file in config.effects:
         await context.add_effects(core.effects.load_effects(effect_file))
 
-    await context.set_effect(DEFAULT_EFFECT)
+    if config.default_effect is not None:
+        await context.set_effect(config.default_effect)
 
-    for controller in CONTROLLERS:
+    for controller in config.controllers:
         await controller.start(context)
 
     while True:
@@ -31,7 +52,35 @@ async def main_loop():
         for sink in context.sinks:
             await sink.sink(result)
 
-        await asyncio.sleep(FRAME_TIME / 1000)
+        await asyncio.sleep(config.frame_time / 1000)
 
 
-asyncio.run(main_loop())
+config = Config([], [], [], None, 10)
+
+config.effects = glob.glob('effects/*.py')
+
+parser = argparse.ArgumentParser(description='lightfx daemon')
+parser.add_argument('--config', nargs=1, default=None, help="config file path")
+
+args = parser.parse_args()
+
+if args.config is not None:
+    config_script = load_config(args.config[0])
+
+    if 'EFFECTS' in dir(config_script):
+        config.effects.extend(config_script.EFFECTS)
+
+    if 'SINKS' in dir(config_script):
+        config.sinks.extend(config_script.SINKS)
+
+    if 'CONTROLLERS' in dir(config_script):
+        config.controllers.extend(config_script.CONTROLLERS)
+
+    if 'DEFAULT_EFFECT' in dir(config_script):
+        config.default_effect = config_script.DEFAULT_EFFECT
+
+    if 'FRAME_TIME' in dir(config_script):
+        config.frame_time = config_script.FRAME_TIME
+
+
+asyncio.run(main_loop(config))

@@ -1,0 +1,12 @@
+[Unit]
+Description=rgb lightstrip controller
+After=pigpiod.service
+
+[Service]
+User=pi
+WorkingDirectory=/opt/lightfx
+ExecStart=python3 /opt/lightfx/lightfxd.py --config /opt/lightfx/config/config.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

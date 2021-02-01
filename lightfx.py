@@ -4,8 +4,14 @@ import argparse
 import struct
 import sys
 import readline
+import os
 
 import jsonplus
+
+
+socket_path = os.getenv('LIGHTFX_SOCKET')
+if socket_path is None:
+    socket_path = '/tmp/lightfx.sock'
 
 
 async def receive(reader):
@@ -23,7 +29,7 @@ def send(writer, data):
 
 
 async def exec():
-    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    reader, writer = await asyncio.open_unix_connection(socket_path)
 
     try:
         user_input = input('>>> ')
@@ -57,7 +63,7 @@ async def exec():
 
 
 async def get(field):
-    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    reader, writer = await asyncio.open_unix_connection(socket_path)
     send(writer, {
         'action': 'get',
     })
@@ -73,7 +79,7 @@ async def get(field):
 
 
 async def set_effect(effect):
-    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    reader, writer = await asyncio.open_unix_connection(socket_path)
     send(writer, {
         'action': 'get',
     })
@@ -98,7 +104,7 @@ async def set_effect(effect):
 
 
 async def set_top_level_options(options):
-    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    reader, writer = await asyncio.open_unix_connection(socket_path)
     send(writer, {
         'action': 'get',
     })
@@ -122,7 +128,7 @@ async def set_top_level_options(options):
 
 
 async def set_options_fields(options_fields: [(str, object)]):
-    reader, writer = await asyncio.open_unix_connection('/tmp/lightfx.sock')
+    reader, writer = await asyncio.open_unix_connection(socket_path)
     send(writer, {
         'action': 'get',
     })
