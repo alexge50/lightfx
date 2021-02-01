@@ -80,6 +80,7 @@ async def set_effect(effect):
 
     result = (await receive(reader))['value']
     result['effect'] = effect
+    del result['options']
 
     send(writer, {
         'action': 'set',
