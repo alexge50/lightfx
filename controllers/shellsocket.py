@@ -9,6 +9,7 @@ import traceback
 import jsonplus
 
 import core.effects
+import core.exceptions
 
 
 async def receive(reader):
@@ -62,32 +63,44 @@ async def handle_connection(context, reader, writer):
                         expression_value = await locals_['f'](context)
                 except Exception:
                     message = traceback.format_exc()
-                    send(writer, {'traceback': message})
+                    send(writer, {'state': 'failed', 'traceback': message})
                 finally:
                     if is_expression:
-                        send(writer, {'success': {'value': repr(expression_value), 'stdout': stdout.getvalue()}})
+                        send(writer, {
+                            'state': 'success',
+                            'value': repr(expression_value),
+                            'stdout': stdout.getvalue()
+                        })
                     else:
                         send(writer, {'success': {'stdout': stdout.getvalue()}})
             elif data['action'] == 'get':
                 state = await context.state()
-                send(writer, {'success': {
-                    'delta_time': state.delta_time,
-                    'effect': str(state.current_effect),
-                    'options': state.options,
-                    'effects': state.effects
-                }})
+                send(writer, {
+                    'state': 'success',
+                    'value': {
+                        'delta_time': state.delta_time,
+                        'effect': str(state.current_effect),
+                        'options': state.options,
+                        'effects': state.effects
+                    }})
             elif data['action'] == 'set':
-                value = data['value']
+                try:
+                    value = data['value']
 
-                if str((await context.state()).current_effect) != value['effect']:
-                    await context.set_effect(value['effect'])
+                    if str((await context.state()).current_effect) != value['effect']:
+                        await context.set_effect(value['effect'])
 
-                state = await context.state()
-                if '_asdict' in dir(value['options']) and \
-                   core.effects.is_effect_type(type(state.current_effect)):
-                    await context.set_options(type(state.current_effect).options_type()(**value['options']._asdict()))
-                else:
-                    await context.set_options(value['options'])
+                    state = await context.state()
+                    if '_asdict' in dir(value['options']) and \
+                            core.effects.is_effect_type(type(state.current_effect)):
+                        await context.set_options(
+                            type(state.current_effect).options_type()(**value['options']._asdict()))
+                    else:
+                        await context.set_options(value['options'])
+                except core.exceptions.LightFxException as e:
+                    send(writer, {'state': 'failed', 'value': str(e)})
+                finally:
+                    send(writer, {'state': 'success'})
 
     except asyncio.IncompleteReadError:
         pass

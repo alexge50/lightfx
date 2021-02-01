@@ -45,7 +45,10 @@ async def get(field):
 
     result = await receive(reader)
 
-    print(result['success'][field])
+    if result['state'] == 'success':
+        print(result['value'][field])
+    else:
+        print("getting state failed")
 
     writer.close()
 
@@ -56,13 +59,20 @@ async def set_effect(effect):
         'action': 'get',
     })
 
-    result = (await receive(reader))['success']
+    result = (await receive(reader))['value']
     result['effect'] = effect
 
     send(writer, {
         'action': 'set',
         'value': result
     })
+
+    result = await receive(reader)
+
+    if result['state'] == 'success':
+        print(f'effect set to {effect}')
+    else:
+        print(f'Error: {result["value"]}')
 
     writer.close()
 
@@ -73,13 +83,20 @@ async def set_top_level_options(options):
         'action': 'get',
     })
 
-    result = (await receive(reader))['success']
+    result = (await receive(reader))['value']
     result['options'] = options
 
     send(writer, {
         'action': 'set',
         'value': result
     })
+
+    result = await receive(reader)
+
+    if result['state'] == 'success':
+        print(f'options updated')
+    else:
+        print(f'Error: {result["value"]}')
 
     writer.close()
 
@@ -90,7 +107,7 @@ async def set_options_fields(options_fields: [(str, object)]):
         'action': 'get',
     })
 
-    result = (await receive(reader))['success']
+    result = (await receive(reader))['value']
 
     options_type = type(result['options'])
     options = result['options']._asdict()
@@ -103,6 +120,13 @@ async def set_options_fields(options_fields: [(str, object)]):
         'action': 'set',
         'value': result
     })
+
+    result = await receive(reader)
+
+    if result['state'] == 'success':
+        print(f'options updated')
+    else:
+        print(f'Error: {result["value"]}')
 
     writer.close()
 
@@ -129,7 +153,7 @@ elif args.command == 'options':
         asyncio.run(get('options'))
     else:
         if len(args.arguments) == 1:
-            asyncio.run(set_top_level_options(eval(args.arguments[1], {}, {})))
+            asyncio.run(set_top_level_options(eval(args.arguments[0], {}, {})))
         elif len(args.arguments) % 2 == 0:
             arguments = [(name, eval(value, {}, {})) for name, value in zip(args.arguments[0::2], args.arguments[1::2])]
             asyncio.run(set_options_fields(arguments))

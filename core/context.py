@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from asyncio import Lock
 
-import core.timer
 import core.effects
+from core.exceptions import *
 import core.sinks
+import core.timer
 
 
 @dataclass
@@ -39,7 +40,9 @@ class Context:
 
     async def set_effect(self, effect):
         async with self._lock:
-            if isinstance(effect, str) and effect in self._effects:
+            if isinstance(effect, str):
+                if effect not in self._effects:
+                    raise EffectNameNotFound(effect)
                 self._current_effect = self._effects[effect]()
                 self._options = type(self._current_effect).default_options()
             elif core.effects.is_effect_type(type(effect)):
@@ -48,6 +51,8 @@ class Context:
             elif core.effects.is_effect_function(effect):
                 self._current_effect = effect
                 self._options = None
+            else:
+                raise IncorrectEffectType(type(effect))
 
     async def set_options(self, options):
         async with self._lock:
@@ -56,6 +61,10 @@ class Context:
                         type(self._current_effect).options_type() is None:
                     self._current_effect.check_options(options)
                     self._options = options
+                else:
+                    raise InvalidOptions(f'invalid options type, '
+                                         f'required {type(self._current_effect).options_type()}, '
+                                         f'got {type(options)}')
             elif core.effects.is_effect_function(self._current_effect):
                 self._options = options
 
