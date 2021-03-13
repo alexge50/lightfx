@@ -1,2 +1,5 @@
 pigpio
 jsonplus
+PyAudio
+numpy
+scipy
